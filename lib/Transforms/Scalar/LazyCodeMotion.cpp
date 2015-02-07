@@ -18,6 +18,7 @@
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/IR/CFG.h"
+#include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Instructions.h"
@@ -40,6 +41,7 @@ public:
   bool runOnFunction(Function &F) override;
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
+    AU.addRequired<DominatorTreeWrapperPass>();
     AU.setPreservesCFG();
   }
 };
@@ -48,13 +50,39 @@ public:
 bool LazyCM::runOnFunction(Function &F) {
   bool Changed = false;
 
+  DominatorTree &DT = getAnalysis<DominatorTreeWrapperPass>().getDomTree();
+
   DEBUG(dbgs() << "Beginning Lazy Code Motion for function: " << F.getName()
                << "\n");
 
   for (auto POI = po_begin(&F), POE = po_end(&F); POI != POE; ++POI) {
     BasicBlock &BB = **POI;
     for (auto II = std::next(BB.rbegin()), IE = BB.rend(); II != IE; ++II) {
-      DEBUG(dbgs() << "Inspecting instruction: " << *II << "\n");
+      Instruction &I = *II;
+      DEBUG(dbgs() << "Inspecting instruction: " << I << "\n");
+
+      if (I.use_empty())
+        continue;
+
+      // Set the dominating BB to the parent BB of the first use.
+      BasicBlock *DomBB = cast<Instruction>(I.user_back())->getParent();
+
+      // Now keep finding the common dominator across the common dominator so
+      // far and the block contaning every user.
+      for (User *U : I.users()) {
+        DEBUG(dbgs() << "    User: " << *U << "\n");
+        DomBB = DT.findNearestCommonDominator(
+            DomBB, cast<Instruction>(U)->getParent());
+        if (!DomBB)
+          // Once we hit null, there is no common dominator.
+          break;
+      }
+      if (!DomBB || DomBB == &BB)
+        // Never found an interesting common dominator, move on to the next
+        // instruction.
+        continue;
+
+      DEBUG(dbgs() << "    Dominating BB: " << DomBB->getName() << "\n");
     }
   }
 
@@ -66,4 +94,5 @@ char LazyCM::ID = 0;
 FunctionPass *llvm::createLazyCMPass() { return new LazyCM(); }
 
 INITIALIZE_PASS_BEGIN(LazyCM, "lcm", "Lazy Code Motion", false, false)
+INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
 INITIALIZE_PASS_END(LazyCM, "lcm", "LazyCodeMotion", false, false)
