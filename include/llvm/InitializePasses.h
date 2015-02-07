@@ -154,6 +154,7 @@ void initializeJumpInstrTablesPass(PassRegistry&);
 void initializeJumpThreadingPass(PassRegistry&);
 void initializeLCSSAPass(PassRegistry&);
 void initializeLICMPass(PassRegistry&);
+void initializeLazyCMPass(PassRegistry&);
 void initializeLazyValueInfoPass(PassRegistry&);
 void initializeLibCallAliasAnalysisPass(PassRegistry&);
 void initializeLintPass(PassRegistry&);

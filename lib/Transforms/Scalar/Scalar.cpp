@@ -44,6 +44,7 @@ void llvm::initializeScalarOpts(PassRegistry &Registry) {
   initializeIndVarSimplifyPass(Registry);
   initializeJumpThreadingPass(Registry);
   initializeLICMPass(Registry);
+  initializeLazyCMPass(Registry);
   initializeLoopDeletionPass(Registry);
   initializeLoopInstSimplifyPass(Registry);
   initializeLoopRotatePass(Registry);

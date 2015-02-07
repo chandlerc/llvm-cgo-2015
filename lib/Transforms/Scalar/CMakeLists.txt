@@ -13,6 +13,7 @@ add_llvm_library(LLVMScalarOpts
   IndVarSimplify.cpp
   JumpThreading.cpp
   LICM.cpp
+  LazyCodeMotion.cpp
   LoadCombine.cpp
   LoopDeletion.cpp
   LoopIdiomRecognize.cpp
