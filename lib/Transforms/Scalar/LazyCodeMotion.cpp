@@ -15,7 +15,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Scalar.h"
+#include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/IR/CFG.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Instructions.h"
@@ -49,7 +51,12 @@ bool LazyCM::runOnFunction(Function &F) {
   DEBUG(dbgs() << "Beginning Lazy Code Motion for function: " << F.getName()
                << "\n");
 
-  // Do something here!
+  for (auto POI = po_begin(&F), POE = po_end(&F); POI != POE; ++POI) {
+    BasicBlock &BB = **POI;
+    for (auto II = std::next(BB.rbegin()), IE = BB.rend(); II != IE; ++II) {
+      DEBUG(dbgs() << "Inspecting instruction: " << *II << "\n");
+    }
+  }
 
   return Changed;
 }
