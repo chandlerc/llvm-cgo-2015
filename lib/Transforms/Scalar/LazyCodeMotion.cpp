@@ -105,6 +105,15 @@ bool LazyCM::runOnFunction(Function &F) {
       }
       assert(InsertPoint && "Didn't correctly locate an insert point!");
       DEBUG(dbgs() << "    Sinking to: " << *InsertPoint << "\n");
+
+      // Back up the iterator as we're about to remove the intruction it points
+      // at.
+      --II;
+
+      I.moveBefore(InsertPoint);
+
+      // Reset the end iterator as well.
+      IE = BB.rend();
     }
   }
 
