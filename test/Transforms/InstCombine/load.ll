@@ -161,3 +161,13 @@ define void @test16(float* %x, i32* %y) {
   store i32 %f.cast, i32* %y
   ret void
 }
+
+define void @test17(<4 x float>* %x, <4 x i32>* %y) {
+; CHECK-LABEL: @test17(
+; CHECK:         %[[V:.*]] = load <4 x i32>*
+; CHECK:         store <4 x i32> %[[V]], <4 x i32>*
+  %f = load <4 x float>* %x
+  %f.cast = bitcast <4 x float> %f to <4 x i32>
+  store <4 x i32> %f.cast, <4 x i32>* %y
+  ret void
+}

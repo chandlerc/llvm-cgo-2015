@@ -418,7 +418,8 @@ static Instruction *combineLoadToOperationType(InstCombiner &IC, LoadInst &LI) {
     return nullptr;
 
   const DataLayout *DL = IC.getDataLayout();
-  if (DL && !LI.getType()->isIntegerTy()) {
+  if (DL && !LI.getType()->isIntegerTy() &&
+      DL->isLegalInteger(DL->getTypeSizeInBits(LI.getType()))) {
     if (std::all_of(LI.user_begin(), LI.user_end(),
                     [](User *U) { return isa<StoreInst>(U); })) {
       LoadInst *NewLoad = combineLoadToNewType(
