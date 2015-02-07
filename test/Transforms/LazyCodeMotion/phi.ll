@@ -12,8 +12,8 @@ then:
   br label %merge
 
 merge:
-  %phi1 = phi i32 [ %v1, %entry ], [ %v2, %then1 ]
-  %phi2 = phi i32 [ %v2, %entry ], [ %v1, %then1 ]
+  %phi1 = phi i32 [ %v1, %entry ], [ %v2, %then ]
+  %phi2 = phi i32 [ %v2, %entry ], [ %v1, %then ]
   %gep2 = getelementptr i32* %ptr, i32 %phi1
   store i32 0, i32* %gep2
   %gep3 = getelementptr i32* %ptr, i32 %phi2
