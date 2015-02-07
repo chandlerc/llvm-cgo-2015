@@ -6634,99 +6634,6 @@ static SDValue ExpandHorizontalBinOp(const SDValue &V0, const SDValue &V1,
   return DAG.getNode(ISD::CONCAT_VECTORS, DL, VT, LO, HI);
 }
 
-/// \brief Try to fold a build_vector that performs an 'addsub' into the
-/// sequence of 'vadd + vsub + blendi'.
-static SDValue matchAddSub(const BuildVectorSDNode *BV, SelectionDAG &DAG,
-                           const X86Subtarget *Subtarget) {
-  SDLoc DL(BV);
-  EVT VT = BV->getValueType(0);
-  unsigned NumElts = VT.getVectorNumElements();
-  SDValue InVec0 = DAG.getUNDEF(VT);
-  SDValue InVec1 = DAG.getUNDEF(VT);
-
-  assert((VT == MVT::v8f32 || VT == MVT::v4f64 || VT == MVT::v4f32 ||
-          VT == MVT::v2f64) && "build_vector with an invalid type found!");
-
-  // Odd-numbered elements in the input build vector are obtained from
-  // adding two integer/float elements.
-  // Even-numbered elements in the input build vector are obtained from
-  // subtracting two integer/float elements.
-  unsigned ExpectedOpcode = ISD::FSUB;
-  unsigned NextExpectedOpcode = ISD::FADD;
-  bool AddFound = false;
-  bool SubFound = false;
-
-  for (unsigned i = 0, e = NumElts; i != e; i++) {
-    SDValue Op = BV->getOperand(i);
-
-    // Skip 'undef' values.
-    unsigned Opcode = Op.getOpcode();
-    if (Opcode == ISD::UNDEF) {
-      std::swap(ExpectedOpcode, NextExpectedOpcode);
-      continue;
-    }
-
-    // Early exit if we found an unexpected opcode.
-    if (Opcode != ExpectedOpcode)
-      return SDValue();
-
-    SDValue Op0 = Op.getOperand(0);
-    SDValue Op1 = Op.getOperand(1);
-
-    // Try to match the following pattern:
-    // (BINOP (extract_vector_elt A, i), (extract_vector_elt B, i))
-    // Early exit if we cannot match that sequence.
-    if (Op0.getOpcode() != ISD::EXTRACT_VECTOR_ELT ||
-        Op1.getOpcode() != ISD::EXTRACT_VECTOR_ELT ||
-        !isa<ConstantSDNode>(Op0.getOperand(1)) ||
-        !isa<ConstantSDNode>(Op1.getOperand(1)) ||
-        Op0.getOperand(1) != Op1.getOperand(1))
-      return SDValue();
-
-    unsigned I0 = cast<ConstantSDNode>(Op0.getOperand(1))->getZExtValue();
-    if (I0 != i)
-      return SDValue();
-
-    // We found a valid add/sub node. Update the information accordingly.
-    if (i & 1)
-      AddFound = true;
-    else
-      SubFound = true;
-
-    // Update InVec0 and InVec1.
-    if (InVec0.getOpcode() == ISD::UNDEF)
-      InVec0 = Op0.getOperand(0);
-    if (InVec1.getOpcode() == ISD::UNDEF)
-      InVec1 = Op1.getOperand(0);
-
-    // Make sure that operands in input to each add/sub node always
-    // come from a same pair of vectors.
-    if (InVec0 != Op0.getOperand(0)) {
-      if (ExpectedOpcode == ISD::FSUB)
-        return SDValue();
-
-      // FADD is commutable. Try to commute the operands
-      // and then test again.
-      std::swap(Op0, Op1);
-      if (InVec0 != Op0.getOperand(0))
-        return SDValue();
-    }
-
-    if (InVec1 != Op1.getOperand(0))
-      return SDValue();
-
-    // Update the pair of expected opcodes.
-    std::swap(ExpectedOpcode, NextExpectedOpcode);
-  }
-
-  // Don't try to fold this build_vector into an ADDSUB if the inputs are undef.
-  if (AddFound && SubFound && InVec0.getOpcode() != ISD::UNDEF &&
-      InVec1.getOpcode() != ISD::UNDEF)
-    return DAG.getNode(X86ISD::ADDSUB, DL, VT, InVec0, InVec1);
-
-  return SDValue();
-}
-
 static SDValue PerformBUILD_VECTORCombine(SDNode *N, SelectionDAG &DAG,
                                           const X86Subtarget *Subtarget) {
   SDLoc DL(N);
@@ -6734,14 +6641,6 @@ static SDValue PerformBUILD_VECTORCombine(SDNode *N, SelectionDAG &DAG,
   unsigned NumElts = VT.getVectorNumElements();
   BuildVectorSDNode *BV = cast<BuildVectorSDNode>(N);
   SDValue InVec0, InVec1;
-
-  // Try to match an ADDSUB.
-  if ((Subtarget->hasSSE3() && (VT == MVT::v4f32 || VT == MVT::v2f64)) ||
-      (Subtarget->hasAVX() && (VT == MVT::v8f32 || VT == MVT::v4f64))) {
-    SDValue Value = matchAddSub(BV, DAG, Subtarget);
-    if (Value.getNode())
-      return Value;
-  }
 
   // Try to match horizontal ADD/SUB.
   unsigned NumUndefsLO = 0;
@@ -20248,7 +20147,6 @@ const char *X86TargetLowering::getTargetNodeName(unsigned Opcode) const {
   case X86ISD::COMPRESS:           return "X86ISD::COMPRESS";
   case X86ISD::EXPAND:             return "X86ISD::EXPAND";
   case X86ISD::SELECT:             return "X86ISD::SELECT";
-  case X86ISD::ADDSUB:             return "X86ISD::ADDSUB";
   case X86ISD::RCP28:              return "X86ISD::RCP28";
   case X86ISD::RSQRT28:            return "X86ISD::RSQRT28";
   }
@@ -22718,13 +22616,8 @@ static SDValue PerformTargetShuffleCombine(SDValue N, SelectionDAG &DAG,
 }
 
 /// \brief Try to combine a shuffle into a target-specific add-sub node.
-///
-/// We combine this directly on the abstract vector shuffle nodes so it is
-/// easier to generically match. We also insert dummy vector shuffle nodes for
-/// the operands which explicitly discard the lanes which are unused by this
-/// operation to try to flow through the rest of the combiner the fact that
-/// they're unused.
 static SDValue combineShuffleToAddSub(SDNode *N, SelectionDAG &DAG) {
+#if 0
   SDLoc DL(N);
   EVT VT = N->getValueType(0);
 
@@ -22739,37 +22632,11 @@ static SDValue combineShuffleToAddSub(SDNode *N, SelectionDAG &DAG) {
   SDValue V1 = N->getOperand(0);
   SDValue V2 = N->getOperand(1);
 
-  // We require the first shuffle operand to be the SUB node, and the second to
-  // be the ADD node.
-  // FIXME: We should support the commuted patterns.
-  if (V1->getOpcode() != ISD::FSUB || V2->getOpcode() != ISD::FADD)
-    return SDValue();
-
-  // If there are other uses of these operations we can't fold them.
-  if (!V1->hasOneUse() || !V2->hasOneUse())
-    return SDValue();
-
-  // Ensure that both operations have the same operands. Note that we can
-  // commute the FADD operands.
-  SDValue LHS = V1->getOperand(0), RHS = V1->getOperand(1);
-  if ((V2->getOperand(0) != LHS || V2->getOperand(1) != RHS) &&
-      (V2->getOperand(0) != RHS || V2->getOperand(1) != LHS))
-    return SDValue();
-
-  // We're looking for blends between FADD and FSUB nodes. We insist on these
-  // nodes being lined up in a specific expected pattern.
-  if (!(isShuffleEquivalent(Mask, 0, 3) ||
-        isShuffleEquivalent(Mask, 0, 5, 2, 7) ||
-        isShuffleEquivalent(Mask, 0, 9, 2, 11, 4, 13, 6, 15)))
-    return SDValue();
-
-  // Only specific types are legal at this point, assert so we notice if and
-  // when these change.
-  assert((VT == MVT::v4f32 || VT == MVT::v2f64 || VT == MVT::v8f32 ||
-          VT == MVT::v4f64) &&
-         "Unknown vector type encountered!");
-
-  return DAG.getNode(X86ISD::ADDSUB, DL, VT, LHS, RHS);
+  // FIXME: Unimplemented!!
+  //return DAG.getNode(???, DL, VT, LHS, RHS);
+#else
+  return SDValue();
+#endif
 }
 
 /// PerformShuffleCombine - Performs several different shuffle combines.

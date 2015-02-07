@@ -5557,38 +5557,6 @@ let Constraints = "$src1 = $dst", Predicates = [UseSSE3] in {
                               f128mem, SSE_ALU_F64P>, PD;
 }
 
-// Patterns used to select 'addsub' instructions.
-let Predicates = [HasAVX] in {
-  def : Pat<(v4f32 (X86Addsub (v4f32 VR128:$lhs), (v4f32 VR128:$rhs))),
-            (VADDSUBPSrr VR128:$lhs, VR128:$rhs)>;
-  def : Pat<(v4f32 (X86Addsub (v4f32 VR128:$lhs), (v4f32 (memop addr:$rhs)))),
-            (VADDSUBPSrm VR128:$lhs, f128mem:$rhs)>;
-  def : Pat<(v2f64 (X86Addsub (v2f64 VR128:$lhs), (v2f64 VR128:$rhs))),
-            (VADDSUBPDrr VR128:$lhs, VR128:$rhs)>;
-  def : Pat<(v2f64 (X86Addsub (v2f64 VR128:$lhs), (v2f64 (memop addr:$rhs)))),
-            (VADDSUBPDrm VR128:$lhs, f128mem:$rhs)>;
-
-  def : Pat<(v8f32 (X86Addsub (v8f32 VR256:$lhs), (v8f32 VR256:$rhs))),
-            (VADDSUBPSYrr VR256:$lhs, VR256:$rhs)>;
-  def : Pat<(v8f32 (X86Addsub (v8f32 VR256:$lhs), (v8f32 (memop addr:$rhs)))),
-            (VADDSUBPSYrm VR256:$lhs, f256mem:$rhs)>;
-  def : Pat<(v4f64 (X86Addsub (v4f64 VR256:$lhs), (v4f64 VR256:$rhs))),
-            (VADDSUBPDYrr VR256:$lhs, VR256:$rhs)>;
-  def : Pat<(v4f64 (X86Addsub (v4f64 VR256:$lhs), (v4f64 (memop addr:$rhs)))),
-            (VADDSUBPDYrm VR256:$lhs, f256mem:$rhs)>;
-}
-
-let Predicates = [UseSSE3] in {
-  def : Pat<(v4f32 (X86Addsub (v4f32 VR128:$lhs), (v4f32 VR128:$rhs))),
-            (ADDSUBPSrr VR128:$lhs, VR128:$rhs)>;
-  def : Pat<(v4f32 (X86Addsub (v4f32 VR128:$lhs), (v4f32 (memop addr:$rhs)))),
-            (ADDSUBPSrm VR128:$lhs, f128mem:$rhs)>;
-  def : Pat<(v2f64 (X86Addsub (v2f64 VR128:$lhs), (v2f64 VR128:$rhs))),
-            (ADDSUBPDrr VR128:$lhs, VR128:$rhs)>;
-  def : Pat<(v2f64 (X86Addsub (v2f64 VR128:$lhs), (v2f64 (memop addr:$rhs)))),
-            (ADDSUBPDrm VR128:$lhs, f128mem:$rhs)>;
-}
-
 //===---------------------------------------------------------------------===//
 // SSE3 Instructions
 //===---------------------------------------------------------------------===//
