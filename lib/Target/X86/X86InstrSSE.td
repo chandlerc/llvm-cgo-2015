@@ -5560,16 +5560,24 @@ let Constraints = "$src1 = $dst", Predicates = [UseSSE3] in {
 let Predicates = [HasAVX] in {
   def : Pat<(v4f32 (X86Addsub VR128:$lhs, VR128:$rhs)),
             (VADDSUBPSrr VR128:$lhs, VR128:$rhs)>;
+  def : Pat<(v4f32 (X86Addsub VR128:$lhs, (loadv4f32 addr:$rhs))),
+            (VADDSUBPSrm VR128:$lhs, addr:$rhs)>;
 
   def : Pat<(v2f64 (X86Addsub VR128:$lhs, VR128:$rhs)),
             (VADDSUBPDrr VR128:$lhs, VR128:$rhs)>;
+  def : Pat<(v2f64 (X86Addsub VR128:$lhs, (loadv2f64 addr:$rhs))),
+            (VADDSUBPDrm VR128:$lhs, addr:$rhs)>;
 }
 let Predicates = [UseSSE3] in {
   def : Pat<(v4f32 (X86Addsub VR128:$lhs, VR128:$rhs)),
             (ADDSUBPSrr VR128:$lhs, VR128:$rhs)>;
+  def : Pat<(v4f32 (X86Addsub VR128:$lhs, (loadv4f32 addr:$rhs))),
+            (ADDSUBPSrm VR128:$lhs, addr:$rhs)>;
 
   def : Pat<(v2f64 (X86Addsub VR128:$lhs, VR128:$rhs)),
             (ADDSUBPDrr VR128:$lhs, VR128:$rhs)>;
+  def : Pat<(v2f64 (X86Addsub VR128:$lhs, (loadv2f64 addr:$rhs))),
+            (ADDSUBPDrm VR128:$lhs, addr:$rhs)>;
 }
 
 //===---------------------------------------------------------------------===//
