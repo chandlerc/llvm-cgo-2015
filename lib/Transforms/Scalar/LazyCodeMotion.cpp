@@ -104,6 +104,41 @@ bool LazyCM::runOnFunction(Function &F) {
           break;
       }
       assert(InsertPoint && "Didn't correctly locate an insert point!");
+
+      // If the insert point is a PHI node, we have to find a common dominator
+      // for all of the predecessors which have incoming uses.
+      if (isa<PHINode>(InsertPoint)) {
+        DomBB = nullptr;
+        // We have to potentially scan multiple PHI node users in the same
+        // basic block and take the common dominator for all their incoming uses.
+        while (auto *PHI = dyn_cast<PHINode>(InsertPoint)) {
+          for (int i = 0, NumIncoming = PHI->getNumIncomingValues();
+               i < NumIncoming; ++i) {
+            if (PHI->getIncomingValue(i) != &I)
+              continue;
+
+            BasicBlock *IncomingBB = PHI->getIncomingBlock(i);
+            DomBB = DomBB ? DT.findNearestCommonDominator(DomBB, IncomingBB)
+                          : IncomingBB;
+            if (!DomBB)
+              break;
+          }
+          if (!DomBB)
+            break;
+          InsertPoint = std::next(BasicBlock::iterator(InsertPoint));
+        }
+        if (!DomBB || DomBB == &BB) {
+          DEBUG(dbgs() << "    PHI node needs incoming values with no common "
+                          "dominator!\n");
+          continue;
+        }
+
+        // We know nothing in this block uses I because there it properly
+        // dominates the common dominator of all users. Just insert before the
+        // terminator.
+        InsertPoint = DomBB->getTerminator();
+      }
+
       DEBUG(dbgs() << "    Sinking to: " << *InsertPoint << "\n");
 
       // Back up the iterator as we're about to remove the intruction it points
