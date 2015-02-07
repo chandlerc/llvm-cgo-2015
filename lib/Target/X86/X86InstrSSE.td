@@ -5557,6 +5557,13 @@ let Constraints = "$src1 = $dst", Predicates = [UseSSE3] in {
                               f128mem, SSE_ALU_F64P>, PD;
 }
 
+def : Pat<(v4f32 (X86Addsub VR128:$lhs, VR128:$rhs)),
+          (ADDSUBPSrr VR128:$lhs, VR128:$rhs)>;
+
+def : Pat<(v2f64 (X86Addsub VR128:$lhs, VR128:$rhs)),
+          (ADDSUBPDrr VR128:$lhs, VR128:$rhs)>;
+
+
 //===---------------------------------------------------------------------===//
 // SSE3 Instructions
 //===---------------------------------------------------------------------===//
