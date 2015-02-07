@@ -151,3 +151,13 @@ define i8 @test15(i8 %x, i32 %y) {
   %r = load i8* %g.i8
   ret i8 %r
 }
+
+define void @test16(float* %x, i32* %y) {
+; CHECK-LABEL: @test16(
+; CHECK:         %[[V:.*]] = load i32*
+; CHECK:         store i32 %[[V:.*]], i32*
+  %f = load float* %x
+  %f.cast = bitcast float %f to i32
+  store i32 %f.cast, i32* %y
+  ret void
+}
