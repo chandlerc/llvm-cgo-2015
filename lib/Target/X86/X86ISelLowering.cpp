@@ -22618,7 +22618,7 @@ static SDValue PerformTargetShuffleCombine(SDValue N, SelectionDAG &DAG,
 
 /// \brief Try to combine a shuffle into a target-specific add-sub node.
 static SDValue combineShuffleToAddSub(SDNode *N, SelectionDAG &DAG) {
-#if 0
+#if 1
   SDLoc DL(N);
   EVT VT = N->getValueType(0);
 
@@ -22633,8 +22633,31 @@ static SDValue combineShuffleToAddSub(SDNode *N, SelectionDAG &DAG) {
   SDValue V1 = N->getOperand(0);
   SDValue V2 = N->getOperand(1);
 
-  // FIXME: Unimplemented!!
-  //return DAG.getNode(???, DL, VT, LHS, RHS);
+  // The FSUB is the zero element due to endianness.
+  // FIXME: Check for commuted vector shuffles or ensure they are
+  // canonicalized.
+  if (V1.getOpcode() != ISD::FSUB || V2.getOpcode() != ISD::FADD)
+    return SDValue();
+
+  // Make sure we're subtracting and adding the same values.
+  // FIXME: Handle commuted adds.
+  if (V1.getOperand(0) != V2.getOperand(0) ||
+      V1.getOperand(1) != V2.getOperand(1))
+    return SDValue();
+
+  // Reject any cases where there are other uses of the sub or add as we
+  // combine them with the blend.
+  if (!V1.hasOneUse() || !V2.hasOneUse())
+    return SDValue();
+
+  // Check that this is the right kind of blend.
+  if (!isShuffleEquivalent(Mask, 0, 5, 2, 7) &&
+      !isShuffleEquivalent(Mask, 0, 3))
+    return SDValue();
+
+  // Ok, form the addsub.
+  return DAG.getNode(X86ISD::ADDSUB, DL, VT, V1.getOperand(0),
+                     V1.getOperand(1));
 #else
   return SDValue();
 #endif
