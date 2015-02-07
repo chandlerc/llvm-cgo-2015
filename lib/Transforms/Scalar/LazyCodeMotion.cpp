@@ -83,6 +83,28 @@ bool LazyCM::runOnFunction(Function &F) {
         continue;
 
       DEBUG(dbgs() << "    Dominating BB: " << DomBB->getName() << "\n");
+
+      // Scan the dominating basic block and stop at the terminator or first
+      // user.
+      Instruction *InsertPoint = nullptr;
+      for (Instruction &DomBBI : *DomBB) {
+        // If this is the terminator, we're done.
+        if (&DomBBI == DomBB->getTerminator()) {
+          InsertPoint = &DomBBI;
+          break;
+        }
+
+        // Check if this instruction is using I.
+        for (Value *Operand : DomBBI.operand_values())
+          if (Operand == &I) {
+            InsertPoint = &DomBBI;
+            break;
+          }
+        if (InsertPoint)
+          break;
+      }
+      assert(InsertPoint && "Didn't correctly locate an insert point!");
+      DEBUG(dbgs() << "    Sinking to: " << *InsertPoint << "\n");
     }
   }
 
