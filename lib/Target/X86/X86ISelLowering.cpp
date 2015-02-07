@@ -20029,6 +20029,7 @@ const char *X86TargetLowering::getTargetNodeName(unsigned Opcode) const {
   case X86ISD::HSUB:               return "X86ISD::HSUB";
   case X86ISD::FHADD:              return "X86ISD::FHADD";
   case X86ISD::FHSUB:              return "X86ISD::FHSUB";
+  case X86ISD::ADDSUB:             return "X86ISD::ADDSUB";
   case X86ISD::UMAX:               return "X86ISD::UMAX";
   case X86ISD::UMIN:               return "X86ISD::UMIN";
   case X86ISD::SMAX:               return "X86ISD::SMAX";
