@@ -417,6 +417,24 @@ static Instruction *combineLoadToOperationType(InstCombiner &IC, LoadInst &LI) {
   if (LI.use_empty())
     return nullptr;
 
+  const DataLayout *DL = IC.getDataLayout();
+  if (DL && !LI.getType()->isIntegerTy()) {
+    if (std::all_of(LI.user_begin(), LI.user_end(),
+                    [](User *U) { return isa<StoreInst>(U); })) {
+      LoadInst *NewLoad = combineLoadToNewType(
+          IC, LI, Type::getIntNTy(LI.getContext(),
+                                  DL->getTypeSizeInBits(LI.getType())));
+
+      for (auto UI = LI.user_begin(), UE = LI.user_end(); UI != UE;) {
+        auto *SI = cast<StoreInst>(*UI++);
+        IC.Builder->SetInsertPoint(SI);
+        combineStoreToNewValue(IC, *SI, NewLoad);
+        IC.EraseInstFromFunction(*SI);
+      }
+
+      return &LI;
+    }
+  }
 
   // Fold away bit casts of the loaded value by loading the desired type.
   if (LI.hasOneUse())
